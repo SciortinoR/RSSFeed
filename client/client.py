@@ -70,8 +70,8 @@ def submit_publish():
 # Submit Subjects
 def submit_subjects():
     username = app.getEntry('Username')
-    subjects = app.getEntry("New Subjects List").split(",")
-
+    subjects = [x.strip() for x in app.getEntry("New Subjects List").split(',')]
+    
     send(Message('SUBJECTS', uuid.uuid4().hex, username, subjects=subjects))
     
 # Submit Info
@@ -80,26 +80,6 @@ def submit_info():
     port = app.getEntry('New Socket #')
 
     send(Message('UPDATE', uuid.uuid4().hex, USERNAME, ip=ip, port=port))
-   
-# Update Info Window
-def update_info():
-    global WINDOW
-
-    app.destroySubWindow(WINDOW)
-    WINDOW = "Update Connection"
-
-    app.startSubWindow(WINDOW)
-
-    app.setBg("orange")
-    app.setFont(18)
-    app.addEntry('New IP Address')
-    app.setEntryDefault("New IP Address", "New IP Address")
-    app.addEntry('New Socket #')
-    app.setEntryDefault("New Socket #", "New Socket #")
-    app.addButtons(["Submit", "Cancel"], [submit_info, user_window])
-
-    app.stopSubWindow()
-    app.showSubWindow(WINDOW)
 
 # Update Subjects Window
 def update_subjects():
@@ -189,7 +169,7 @@ def user_window():
     app.setBg("orange")
     app.setFont(18)
     app.addLabel('dashboard', text=f'Hi {USERNAME}! What would you like to do today:')
-    app.addButtons(['Update Info', 'Update Subjects', 'Publish'], [update_info, update_subjects, publish])
+    app.addButtons(['Update Subjects', 'Publish'], [update_subjects, publish])
     app.addButtons(['Logout', 'Unregister'], [logout, unregister])
     
     app.stopSubWindow()
@@ -208,26 +188,6 @@ def rss_window():
     app.stopSubWindow()
     app.showSubWindow('RSS Feed')
 
-# Updating client IP + Port
-def update_client_socket(access):
-    global client_access
-    global udp_client_socket
-
-    try:
-        udp_client_socket.close()
-        udp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        udp_client_socket.settimeout(3)
-        udp_client_socket.bind(access)
-        client_access = access
-    except socket.error as msg:
-        print(msg)
-        app.errorBox('Error', msg)
-        udp_client_socket.bind(client_access)
-        update_info()
-    else:
-        app.errorBox('Update Info', "Update Info Successful!")
-        user_window()
-
 # Listens to incoming messages from server
 def udp_listener():
     global CURR_SERVER
@@ -243,12 +203,10 @@ def udp_listener():
                 app.setTextArea("Feed", f'[NAME]: {response.name}\n', end=True, callFunction=False)
                 app.setTextArea("Feed", f'[SUBJECT]: {response.subject}\n', end=True, callFunction=False)
                 app.setTextArea("Feed", f'[TEXT]: {response.text}\n\n', end=True, callFunction=False)
-            elif response.message_type == "UPDATE-CONFIRMED":
-                update_client_socket((response.ip, response.port))
             elif response.message_type == "SUBJECTS-UPDATED":
                 app.errorBox('Update Subjects', "Update Subjects Successful!")
                 user_window()
-            elif response.message_type == "PUBLISH":
+            elif response.message_type == "PUBLISH-CONFIRMED":
                 app.errorBox('Publish', "Publish Successful!")
                 user_window()
             elif response.message_type == "DE-REGISTERED":
@@ -276,13 +234,14 @@ def register_login(button):
 
     response = Message()
     try:
-        connect(Message(button.upper(), uuid.uuid4().hex, USERNAME, password, client_access[0], client_access[1]))
+        action = button.upper()
+        connect(Message(action, uuid.uuid4().hex, USERNAME, password, client_access[0], client_access[1]))
         response.json_deserialize(loads(udp_client_socket.recvfrom(MAX_BUFFER_SIZE)[0]))
 
         if response.message_type not in ACTION_LIST:
             raise Exception("Undefined Request Type")
 
-        if response.message_type != 'REGISTERED':
+        if (action == 'REGISTER' and response.message_type != 'REGISTERED') or (action == 'UPDATE' and response.message_type != 'UPDATE-CONFIRMED'):
             raise Exception(f"Error: {response.message_type}\n\n{response.reason}")
 
     except Exception as msg:
@@ -314,7 +273,7 @@ def authenticate():
     app.addSecretEntry("Password")
     app.setEntryDefault("Username", "Username")
     app.setEntryDefault("Password", "Password")
-    app.addButtons(["Register", "Login"], register_login)
+    app.addButtons(["Register", "Update"], register_login)
 
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
