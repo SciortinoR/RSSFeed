@@ -6,9 +6,7 @@ import threading
 from appJar import gui
 from json import dumps, loads
 
-# TODO: Dont use absolute path
-sys.path.insert(1, "D:\Schoolwork\Fall 2020\Coen 445\Project\RSSFeed\models")
-from models import Message, ACTION_LIST
+from models import *
 
 WINDOW = ""
 USERNAME = ""

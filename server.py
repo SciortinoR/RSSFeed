@@ -1,9 +1,8 @@
 import socket
 import sys
 import json
-from handlers import *
-import asyncio
 from models import *
+from handlers import *
 
 db_file_path = ""
 
