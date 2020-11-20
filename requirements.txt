@@ -1,1 +1,3 @@
-appjar
+appJar==0.94.0
+pypiwin32==223
+pywin32==300

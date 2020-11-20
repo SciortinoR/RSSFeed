@@ -8,6 +8,9 @@ from json import dumps, loads
 
 from models import *
 
+import win_ctrl_c
+win_ctrl_c.install_handler()
+
 WINDOW = ""
 USERNAME = ""
 LOGGED_IN = False

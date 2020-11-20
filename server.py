@@ -3,6 +3,8 @@ import sys
 import json
 from models import *
 from handlers import *
+import win_ctrl_c
+win_ctrl_c.install_handler()
 
 db_file_path = ""
 
