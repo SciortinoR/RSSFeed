@@ -5,6 +5,9 @@ import threading
 
 from appJar import gui
 from json import dumps, loads
+
+# TODO: Dont use absolute path
+sys.path.insert(1, "D:\Schoolwork\Fall 2020\Coen 445\Project\RSSFeed\models")
 from models import Message, ACTION_LIST
 
 WINDOW = ""
@@ -198,7 +201,7 @@ def udp_listener():
             response.json_deserialize(loads(udp_client_socket.recvfrom(MAX_BUFFER_SIZE)[0]))
 
             if response.message_type not in ACTION_LIST:
-                raise Exception("Undefined Request Type")
+                raise Exception(f"Undefined Request Type - {response.message_type}")
             elif response.message_type == 'MESSAGE':
                 app.setTextArea("Feed", f'[NAME]: {response.name}\n', end=True, callFunction=False)
                 app.setTextArea("Feed", f'[SUBJECT]: {response.subject}\n', end=True, callFunction=False)

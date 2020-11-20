@@ -1,7 +1,10 @@
 ACTION_LIST = ['REGISTER', 'REGISTERED', 'REGISTER-DENIED', 'LOGIN', 'DE-REGISTER', 'UPDATE',
                 'UPDATE-CONFIRMED', 'UPDATE-DENIED', 'SUBJECTS', 'SUBJECTS-UPDATED',
-                'SUBJECTS-REJECTED', 'PUBLISH', 'PUBLISH-DENIED', 'MESSAGE', 'CHANGE-SERVER'
+                'SUBJECTS-REJECTED', 'PUBLISH', 'PUBLISH-DENIED', "PUBLISH-CONFIRMED" 'MESSAGE', 'CHANGE-SERVER'
                 'UPDATE-SERVER']
+
+# Dictionary of names to user objects
+connected_users = {}
 
 class Message:
     def __init__(self, message_type=None, uuid=None, name=None, password=None, ip=None, port=None, reason=None, subjects=None, subject=None, text=None):
