@@ -17,9 +17,11 @@ class Server:
         self.UDPSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.UDPSock.bind(server_addr)
 
+        self.server_logger = Logger('SERVER')
+
     # Start the server and listen on host:port
     def run_server(self):
-        print(f"Server listening on {self.IP}:{self.port}")
+        self.server_logger.log_info(self.ID, f"Listening on {self.IP}:{self.port}")
         buf = 1024  # Message buffer
 
         # TODO: Read from db file and restore users
@@ -31,7 +33,7 @@ class Server:
             while True:
                 (data, addr) = self.UDPSock.recvfrom(buf)
                 message.json_deserialize(json.loads(data))
-                print("Received message: " + json.dumps(message.json_serialize(), indent=4))
+                self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
 
                 if message.message_type not in ACTION_LIST:
                     raise Exception("Undefined message Type")
@@ -39,33 +41,33 @@ class Server:
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "REGISTER":
-                    resp = handle_register_user(message)
+                    resp = handle_register_user(self.ID, message)
                     self.send(self.UDPSock, resp, addr) 
                     continue
                 
                 if message.message_type == "DE-REGISTER":
                     ret = connnected_users.pop(message.name, None)
                     if ret is not None:
-                        printf(f"Successfully de-registered user with name {ret}")
+                        self.server_logger.log_info(self.ID, f"Successfully de-registered user with name {ret}")
                     continue
 
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "UPDATE":
-                    resp = handle_user_update(message)
+                    resp = handle_user_update(self.ID, message)
                     self.send(self.UDPSock, resp, addr) 
                     continue
                     
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "SUBJECTS": 
-                    resp = handle_subjects_update(message)
+                    resp = handle_subjects_update(self.ID, message)
                     self.send(self.UDPSock, resp, addr)
                     continue
                 
                 
                 if message.message_type == "PUBLISH": 
-                    resp = handle_publish_message(message)
+                    resp = handle_publish_message(self.ID, message)
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
                         self.publish_message(self.UDPSock, message.subject, message.text)

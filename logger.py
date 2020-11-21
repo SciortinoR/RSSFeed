@@ -2,7 +2,13 @@ import logging
 
 class Logger:
     def __init__(self, logger_type):
-        self.logger_type = logger_type.lower()
+        self.logger_type = logger_type.upper()
+
+        logger_dict = logging.Logger.manager.loggerDict
+        if self.logger_type in logger_dict:
+            self.logger = logging.getLogger(self.logger_type)
+            return
+        
         self.logger = logging.getLogger(self.logger_type)
 
         formatter = logging.Formatter(fmt='[%(levelname)s] - %(asctime)s - %(name)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -21,6 +27,7 @@ class Logger:
 
 if __name__ == "__main__":
     server_logger = Logger('SERVER')
+    server_logger_2 = Logger('SERVER')
     client_logger = Logger('CLIENT')
 
     server_a_message = "Client 123 sent message: Hello, with subject: Hey to server A"
@@ -32,3 +39,5 @@ if __name__ == "__main__":
     client_logger.log_info(id='234', message=client_234_message)
     server_logger.log_info(id='A', message=server_a_message)
     server_logger.log_info(id='B', message=server_b_message)
+
+    print(logging.Logger.manager.loggerDict)
