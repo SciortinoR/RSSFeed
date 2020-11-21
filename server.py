@@ -3,7 +3,7 @@ import sys
 import json
 from logger import Logger
 from models import *
-from handlers import *
+from handlers import Handler
 import win_ctrl_c
 win_ctrl_c.install_handler()
 
@@ -18,6 +18,8 @@ class Server:
         self.UDPSock.bind(server_addr)
 
         self.server_logger = Logger('SERVER')
+
+        self.handler = Handler(self.ID)
 
     # Start the server and listen on host:port
     def run_server(self):
@@ -41,7 +43,7 @@ class Server:
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "REGISTER":
-                    resp = handle_register_user(self.ID, message)
+                    resp = self.handler.handle_register_user(message)
                     self.send(self.UDPSock, resp, addr) 
                     continue
                 
@@ -54,20 +56,20 @@ class Server:
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "UPDATE":
-                    resp = handle_user_update(self.ID, message)
+                    resp = self.handler.handle_user_update(message)
                     self.send(self.UDPSock, resp, addr) 
                     continue
                     
                 # TODO: 1) Inform second server
                 #       2) Update Db file
                 if message.message_type == "SUBJECTS": 
-                    resp = handle_subjects_update(self.ID, message)
+                    resp = self.handler.handle_subjects_update(message)
                     self.send(self.UDPSock, resp, addr)
                     continue
                 
                 
                 if message.message_type == "PUBLISH": 
-                    resp = handle_publish_message(self.ID, message)
+                    resp = self.handler.handle_publish_message(message)
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
                         self.publish_message(self.UDPSock, message.subject, message.text)
