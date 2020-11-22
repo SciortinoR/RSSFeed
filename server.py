@@ -3,6 +3,9 @@ import sys
 import json
 from logger import Logger
 from models import *
+import db_models
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from handlers import Handler
 import win_ctrl_c
 win_ctrl_c.install_handler()
@@ -20,14 +23,16 @@ class Server:
 
         self.server_logger = Logger('SERVER')
 
-        self.handler = Handler(self.ID, self.server_logger)
+        engine = create_engine('sqlite:///rssfeed.db', echo=True)
+        Session = sessionmaker(bind=engine)
+        self.session = Session()
+
+        self.handler = Handler(self.ID, self.server_logger, self.session)
 
     # Start the server and listen on host:port
     def run_server(self):
         self.server_logger.log_info(self.ID, f"Listening on {self.IP}:{self.port}")
         buf = 1024  # Message buffer
-
-        # TODO: Read from db file and restore users
 
         # TODO: For each message, ensure the expected fields are present
         try:
@@ -42,39 +47,29 @@ class Server:
                     raise Exception("Undefined message Type")
 
                 # TODO: 1) Inform second server
-                #       2) Update Db file
                 if message.message_type == "REGISTER":
                     resp = self.handler.handle_register_user(message)
                     self.send(self.UDPSock, resp, addr) 
-                    continue
                 
-                if message.message_type == "DE-REGISTER":
-                    ret = connected_users.pop(message.name, None)
-                    if ret is not None:
-                        self.server_logger.log_info(self.ID, f"Successfully de-registered user with name {ret}")
-                    continue
+                # TODO: 1) Inform second server
+                elif message.message_type == "DE-REGISTER":
+                    self.handler.handle_deregister_user(message)
 
                 # TODO: 1) Inform second server
-                #       2) Update Db file
-                if message.message_type == "UPDATE":
+                elif message.message_type == "UPDATE":
                     resp = self.handler.handle_user_update(message)
                     self.send(self.UDPSock, resp, addr) 
-                    continue
                     
                 # TODO: 1) Inform second server
-                #       2) Update Db file
-                if message.message_type == "SUBJECTS": 
+                elif message.message_type == "SUBJECTS": 
                     resp = self.handler.handle_subjects_update(message)
                     self.send(self.UDPSock, resp, addr)
-                    continue
                 
-                
-                if message.message_type == "PUBLISH": 
+                elif message.message_type == "PUBLISH": 
                     resp = self.handler.handle_publish_message(message)
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
-                        self.publish_message(self.UDPSock, message.subject, message.text)
-                    continue
+                        self.publish_message(self.UDPSock, message.name, message.subject, message.text)
 
                 # TODO: Handle messages from second server
         except Exception as msg:
@@ -82,10 +77,9 @@ class Server:
             self.UDPSock.close()
         
         # Send text to every connected user which has subject in their list of subjects
-    def publish_message(sock, subject, text):
-        for name, user in connected_users.items():
-            if subject in user.subjects:
-                send(sock, Message("MESSAGE", name=name, subject=subject, text=text), (user.ip, user.port))
+    def publish_message(self, sock, sender, subject, text):
+        for user in self.session.query(db_models.User).filter(db_models.User.subjects.any(name=subject)).filter(db_models.User.name != sender).all():
+            self.send(sock, Message("MESSAGE", name=sender, subject=subject, text=text), (user.ip, user.port))
 
     # Send message to addr using sock
     def send(self, sock, message, addr):

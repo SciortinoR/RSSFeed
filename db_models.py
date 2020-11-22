@@ -62,7 +62,7 @@ class Subject(Base):
     )
 
     def __init__(self, name):
-        self.name = name
+        self.name = name.lower()
 
     def __repr__(self):
         return f'Subject: {self.name}' 

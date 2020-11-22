@@ -1,16 +1,11 @@
 from models import *
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import db_models
 
 class Handler:
-    def __init__(self, server_ID, logger):
+    def __init__(self, server_ID, logger, db_session):
         self.server_ID = server_ID
         self.server_logger = logger
-
-        engine = create_engine('sqlite:///rssfeed.db', echo=True)
-        Session = sessionmaker(bind=engine)
-        self.session = Session()
+        self.session = db_session
 
     def handle_register_user(self, message):
         username = message.name
@@ -28,14 +23,23 @@ class Handler:
             )
         
         self.server_logger.log_info(self.server_ID, f"Registering new client with name {username} at {ip}:{port}")
-        connected_users[message.name] = User(username, ip, port)
 
         user = db_models.User(username, ip, port, password)
         self.session.add(user)
         self.session.commit()
 
         return Message("REGISTERED", message.uuid)
+    
+    def handle_deregister_user(self, message):
+        username = message.name
+        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
 
+        if user:
+            self.server_logger.log_info(self.server_ID, f"Successfully de-registered user with name {username}")
+            self.session.delete(user)
+            self.session.commit()
+        else:
+            self.server_logger.log_warning(self.server_ID, f"`{username}` doesn't exist. Can't de-register.")
 
     def handle_user_update(self, message):
         username = message.name
@@ -51,7 +55,6 @@ class Handler:
                 reason=f"`{username}` is not a registered user"
             )
         self.server_logger.log_info(self.server_ID, f"Updating info for client {username}")
-        connected_users[username] = User(username, ip, port)
 
         user.ip = ip
         user.port = port
@@ -66,38 +69,58 @@ class Handler:
             )
 
     def handle_subjects_update(self, message):
-        if message.name not in connected_users:
+        username = message.name
+        subjects = message.subjects
+        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
+
+        if not user:
             self.server_logger.log_error(self.server_ID, f"{message.name} does not exist in the registered users")
             return Message(
                 message_type="SUBJECTS-REJECTED", 
                 uuid=message.uuid,
-                reason=f"`{message.name}` is not a registered user"
+                reason=f"`{username}` is not a registered user"
             )
-        connected_users[message.name].subjects = message.subjects
-        self.server_logger.log_info(self.server_ID, f"Updating subjects of user {message.name} to {message.subjects}")
+
+        for subject in subjects:
+            subject = subject.lower()
+            subject_in_db = self.session.query(db_models.Subject).filter_by(name=subject).one_or_none()
+            if subject_in_db:
+                user.subjects.append(subject_in_db)
+            else:
+                user.subjects.append(db_models.Subject(subject))
+        
+        self.session.commit()
+        
+        self.server_logger.log_info(self.server_ID, f"Updating subjects of user {username} to {subjects}")
         return Message(
                 message_type="SUBJECTS-UPDATED", 
                 uuid=message.uuid, 
-                name=message.name, 
-                subjects=message.subjects
+                name=username, 
+                subjects=subjects
             )
 
     def handle_publish_message(self, message):
-        if message.name not in connected_users:
-            self.server_logger.log_error(self.server_ID, f"{message.name} does not exist in the registered users")
+        username = message.name
+        subject = message.subject
+        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
+        subject_in_db = self.session.query(db_models.Subject).filter_by(name=subject).one_or_none()
+
+        if not user:
+            self.server_logger.log_error(self.server_ID, f"{username} does not exist in the registered users")
             return Message(
                 message_type="PUBLISH-DENIED", 
                 uuid=message.uuid,
-                reason=f"`{message.name}` is not a registered user"
+                reason=f"`{username}` is not a registered user"
             )
-        if message.subject not in connected_users[message.name].subjects:
-            self.server_logger.log_error(self.server_ID, f"User {message.name} is not registered to subject {message.subject}")
+        if not subject_in_db:
+            self.server_logger.log_error(self.server_ID, f"User {username} is not registered to subject {subject}")
             return Message(
                 message_type="PUBLISH-DENIED", 
                 uuid=message.uuid,
-                reason=f"User `{message.name}` is not registered to subject {message.subject}"
+                reason=f"User `{username}` is not registered to subject {subject}"
             )
-        self.server_logger.log_info(self.server_ID, f"Publishing message with subject {message.subject}")
+
+        self.server_logger.log_info(self.server_ID, f"Publishing message with subject {subject}")
         return Message(
             message_type="PUBLISH-CONFIRMED",
             uuid=message.uuid,

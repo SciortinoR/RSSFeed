@@ -25,6 +25,9 @@ class Logger:
     def log_error(self, id, message):
         self.logger.error(f'{id} - {message}')
 
+    def log_warning(self, id, message):
+        self.logger.warning(f'{id} - {message}')
+
 if __name__ == "__main__":
     server_logger = Logger('SERVER')
     server_logger_2 = Logger('SERVER')
