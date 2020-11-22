@@ -29,7 +29,7 @@ class Server(Base):
         self.active = active
 
     def __repr__(self):
-        return f'Server {self.name}'
+        return f'Server {self.name} | IP: {self.ip} Port: {self.port}'
 
 class User(Base):
     __tablename__ = "user"
@@ -50,7 +50,7 @@ class User(Base):
         self.password = password
     
     def __repr__(self):
-        return f'User {self.name}'
+        return f'User {self.name} connected from {self.ip}:{self.port}'
 
 class Subject(Base):
     __tablename__ = "subject"

@@ -49,7 +49,7 @@ class Server:
                     continue
                 
                 if message.message_type == "DE-REGISTER":
-                    ret = connnected_users.pop(message.name, None)
+                    ret = connected_users.pop(message.name, None)
                     if ret is not None:
                         self.server_logger.log_info(self.ID, f"Successfully de-registered user with name {ret}")
                     continue

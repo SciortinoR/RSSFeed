@@ -13,18 +13,24 @@ class Handler:
         self.session = Session()
 
     def handle_register_user(self, message):
-        if message.name in connected_users:
-            self.server_logger.log_error(self.server_ID, f"`{message.name}` is already in use")
+        username = message.name
+        password = message.password
+        ip = message.ip
+        port = message.port
+        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
+
+        if user:
+            self.server_logger.log_error(self.server_ID, f"`{username}` is already in use")
             return Message(
                 message_type="REGISTER-DENIED", 
                 uuid=message.uuid,
-                reason=f"`{message.name}` is already in use"
+                reason=f"`{username}` is already in use"
             )
         
-        self.server_logger.log_info(self.server_ID, f"Registering new client with name {message.name} at {message.ip}:{message.port}")
-        connected_users[message.name] = User(message.name, message.ip, message.port)
+        self.server_logger.log_info(self.server_ID, f"Registering new client with name {username} at {ip}:{port}")
+        connected_users[message.name] = User(username, ip, port)
 
-        user = db_models.User(message.name, message.ip, message.port, message.password)
+        user = db_models.User(username, ip, port, password)
         self.session.add(user)
         self.session.commit()
 
@@ -32,20 +38,29 @@ class Handler:
 
 
     def handle_user_update(self, message):
-        if message.name not in connected_users:
-            self.server_logger.log_error(self.server_ID, f"{message.name} does not exist in the registered users")
+        username = message.name
+        ip = message.ip
+        port = message.port
+        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
+
+        if not user:
+            self.server_logger.log_error(self.server_ID, f"{username} does not exist in the registered users")
             return Message(
                 message_type="UPDATE-DENIED", 
                 uuid=message.uuid,
-                reason=f"`{message.name}` is not a registered user"
+                reason=f"`{username}` is not a registered user"
             )
-        self.server_logger.log_info(self.server_ID, f"Updating info for client {message.name}")
-        connected_users[message.name] = User(message.name, message.ip, message.port)
+        self.server_logger.log_info(self.server_ID, f"Updating info for client {username}")
+        connected_users[username] = User(username, ip, port)
+
+        user.ip = ip
+        user.port = port
+        self.session.commit()
 
         return  Message(
                 message_type="UPDATE-CONFIRMED", 
                 uuid=message.uuid, 
-                name=message.name, 
+                name=username, 
                 ip=message.ip, 
                 port=message.port
             )
