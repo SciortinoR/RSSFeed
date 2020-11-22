@@ -8,10 +8,11 @@ import win_ctrl_c
 win_ctrl_c.install_handler()
 
 class Server:
-    def __init__(self, ID, IP, port):
+    def __init__(self, ID, IP, port, is_serving=False):
         self.ID = ID
         self.IP = IP
         self.port = port
+        self.is_serving = is_serving
 
         server_addr = (IP, port)
         self.UDPSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -19,7 +20,7 @@ class Server:
 
         self.server_logger = Logger('SERVER')
 
-        self.handler = Handler(self.ID)
+        self.handler = Handler(self.ID, self.server_logger)
 
     # Start the server and listen on host:port
     def run_server(self):
@@ -94,6 +95,7 @@ class Server:
             print(err)
 
 if __name__ == '__main__':
-    server_A = Server(ID="A", IP="127.0.0.1", port=20001)
+    server_A = Server(ID="A", IP="127.0.0.1", port=20001, is_serving=True)
+    server_B = Server(ID="B", IP="127.0.0.1", port=24523)
     server_A.run_server()
-    
+    # server_B.run_server()

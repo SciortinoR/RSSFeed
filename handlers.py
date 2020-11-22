@@ -1,10 +1,16 @@
 from models import *
-from logger import Logger
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import db_models
 
 class Handler:
-    def __init__(self, server_ID):
+    def __init__(self, server_ID, logger):
         self.server_ID = server_ID
-        self.server_logger = Logger('SERVER')
+        self.server_logger = logger
+
+        engine = create_engine('sqlite:///rssfeed.db', echo=True)
+        Session = sessionmaker(bind=engine)
+        self.session = Session()
 
     def handle_register_user(self, message):
         if message.name in connected_users:
@@ -17,6 +23,11 @@ class Handler:
         
         self.server_logger.log_info(self.server_ID, f"Registering new client with name {message.name} at {message.ip}:{message.port}")
         connected_users[message.name] = User(message.name, message.ip, message.port)
+
+        user = db_models.User(message.name, message.ip, message.port, message.password)
+        self.session.add(user)
+        self.session.commit()
+
         return Message("REGISTERED", message.uuid)
 
 
@@ -30,6 +41,7 @@ class Handler:
             )
         self.server_logger.log_info(self.server_ID, f"Updating info for client {message.name}")
         connected_users[message.name] = User(message.name, message.ip, message.port)
+
         return  Message(
                 message_type="UPDATE-CONFIRMED", 
                 uuid=message.uuid, 
