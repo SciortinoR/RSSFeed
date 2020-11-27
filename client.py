@@ -15,8 +15,13 @@ USERNAME = ""
 LOGGED_IN = False
 
 CURR_SERVER = ()
+<<<<<<< HEAD:client.py
 SERVER1 = sys.argv[1].split(":")
 SERVER2 = sys.argv[2].split(":")
+=======
+SERVER1 = sys.argv[1].split("::")
+SERVER2 = sys.argv[2].split("::")
+>>>>>>> Added command line arguments support for initial server addresses:client/client.py
 SERVER1 = (SERVER1[0], int(SERVER1[1]))
 SERVER2 = (SERVER2[0], int(SERVER2[1]))
 MAX_BUFFER_SIZE = 1024
@@ -279,7 +284,15 @@ if __name__ == '__main__':
     else:
         udp_listener_running = False
         
+<<<<<<< HEAD:client.py
         app = gui(handleArgs=False)
+=======
+        app = gui("Status", "210x22", handleArgs=False)
+        app.setFont(20)
+        app.addLabel('status', 'RSS MANAGER')
+        app.setLabelBg("status", "red")
+        app.setLabelFg("status", "black")
+>>>>>>> Added command line arguments support for initial server addresses:client/client.py
         app.topLevel.protocol('WM_DELETE_WINDOW', check_stop)
         authenticate()
         app.go(startWindow="Authentication")
