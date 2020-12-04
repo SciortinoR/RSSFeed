@@ -189,8 +189,8 @@ class Server:
             print(err)
 
 if __name__ == '__main__':
-    other_server_ID = "B"
+    other_server_ID = "A"
     other_server_IP = "127.0.0.1"
-    other_server_port = 24523
-    server_A = Server(ID="A", IP="127.0.0.1", port=20001, other_ID=other_server_ID, other_IP=other_server_IP, other_port=other_server_port, is_serving=True)
-    server_A.run_server()
+    other_server_port = 20001
+    server_B = Server(ID="B", IP="127.0.0.1", port=24523, other_ID=other_server_ID, other_IP=other_server_IP, other_port=other_server_port)
+    server_B.run_server()

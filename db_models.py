@@ -3,7 +3,7 @@ from sqlalchemy import Column, Date, Integer, String, Table
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('sqlite:///rssfeed.db', echo=True)
+engine = create_engine('sqlite:///server_B.db', echo=True)
 Base = declarative_base()
 
 user_subject = Table(

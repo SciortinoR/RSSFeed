@@ -34,12 +34,24 @@ class Handler:
         username = message.name
         user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
 
+
+        # SECURITY CHECK
+        if user.password != message.password: 
+            self.server_logger.log_error(self.server_ID, f'WRONG PASSWORD MATE.')
+            return
+
         if user:
             self.server_logger.log_info(self.server_ID, f"Successfully de-registered user with name {username}")
             self.session.delete(user)
             self.session.commit()
         else:
-            self.server_logger.log_warning(self.server_ID, f"`{username}` doesn't exist. Can't de-register.")
+            error_message = f"`{username}` doesn't exist. Can't de-register."
+            self.server_logger.log_warning(self.server_ID, error_message)
+            return Message(
+                    message_type="DEREGISTER-DENIED",
+                    uuid=message.uuid,
+                    reason=error_message
+                )
 
     def handle_user_update(self, message):
         username = message.name
