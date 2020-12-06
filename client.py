@@ -2,13 +2,12 @@ import sys
 import uuid
 import socket
 import threading
+import win_ctrl_c
 
+from models import *
 from appJar import gui
 from json import dumps, loads
 
-from models import *
-
-import win_ctrl_c
 win_ctrl_c.install_handler()
 
 WINDOW = ""
@@ -16,8 +15,10 @@ USERNAME = ""
 LOGGED_IN = False
 
 CURR_SERVER = ()
-SERVER1 = ("0.0.0.0", 24523)
-SERVER2 = ("127.0.0.1", 20001)
+SERVER1 = sys.argv[1].split("::")
+SERVER2 = sys.argv[2].split("::")
+SERVER1 = (SERVER1[0], int(SERVER1[1]))
+SERVER2 = (SERVER2[0], int(SERVER2[1]))
 MAX_BUFFER_SIZE = 1024
 
 # Stop GUI method
@@ -295,7 +296,7 @@ if __name__ == '__main__':
     else:
         udp_listener_running = False
         
-        app = gui("Status", "210x22")
+        app = gui("Status", "210x22", handleArgs=False)
         app.setFont(20)
         app.addLabel('status', 'RSS MANAGER')
         app.setLabelBg("status", "red")
