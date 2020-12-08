@@ -36,18 +36,10 @@ def connect(message):
 
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER1)
-    except socket.error as msg:
-        pass
-    else:
-        CURR_SERVER = SERVER1
-        return
-    try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
     except socket.error as msg:
         print(msg)
         app.errorBox('Error', msg)
-    else:
-        CURR_SERVER = SERVER2
 
 # Send Request 
 def send(message):
@@ -232,6 +224,7 @@ def udp_listener():
 def register_login(button):
     global USERNAME
     global LOGGED_IN
+    global CURR_SERVER
     global udp_listener_running
 
     USERNAME = app.getEntry('Username')
@@ -241,7 +234,11 @@ def register_login(button):
     try:
         action = button.upper()
         connect(Message(action, uuid.uuid4().hex, USERNAME, password, client_access[0], client_access[1]))
-        response.json_deserialize(loads(udp_client_socket.recvfrom(MAX_BUFFER_SIZE)[0]))
+        res = udp_client_socket.recvfrom(MAX_BUFFER_SIZE)
+        
+        CURR_SERVER = res[1]
+        
+        response.json_deserialize(loads(res[0]))
 
         if response.message_type not in ACTION_LIST:
             raise Exception("Undefined Request Type")
