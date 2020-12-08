@@ -198,8 +198,13 @@ class Server:
             print(err)
 
 if __name__ == '__main__':
-    other_server_ID = "B"
-    other_server_IP = "127.0.0.1"
-    other_server_port = 24523
-    server_A = Server(ID="A", IP="127.0.0.1", port=20001, other_ID=other_server_ID, other_IP=other_server_IP, other_port=other_server_port, is_serving=True)
-    server_A.run_server()
+    args = sys.argv[1:]
+    print(f"args = {sys.argv[1:]}")
+    if len(args) < 7:
+        print("Error - invalid argument count")
+        print("Expecting: python server.py <server_id> <server_ip> <server_port> <other_server_id> <other_server_ip> <other_server_port> <is_serving>")
+        sys.exit()
+    
+    name, ip, port, other_name, other_ip, other_port, is_active = args
+    Server(ID=name, IP=ip, port=int(port), other_ID=other_name, other_IP=other_ip, other_port=int(other_port), is_serving=is_active).run_server()
+    
