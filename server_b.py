@@ -64,7 +64,7 @@ class Server:
 
     def update_other_server(self):
         message = Message(
-                message_type="UPDATE-SERVER", 
+                message_type="UPDATE-SERVER",
                 ip=self.IP,
                 port=self.port
             )
@@ -79,8 +79,9 @@ class Server:
     def switch_server(self):
         message = Message(
                 message_type="CHANGE-SERVER",
+                text=self.ID,
                 ip=self.other_server_IP,
-                port=self.other_server_port
+                port=self.other_server_port,
             )
 
         self.change_server()
@@ -106,6 +107,8 @@ class Server:
                 
                 (data, addr) = self.UDPSock.recvfrom(buf)
                 message.json_deserialize(json.loads(data))
+                sent_from_other_server = message.text == self.other_server_ID
+
                 if message.message_type != "CHANGE-SERVER":
                     self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
 
@@ -113,9 +116,9 @@ class Server:
                     print(message.message_type)
                     raise Exception("Undefined message Type")
 
-                if message.message_type == "REGISTER":
+                if message.message_type == "REGISTER" and (self.is_serving or sent_from_other_server):
                     resp = self.handler.handle_register_user(message)
-
+                    message.text = self.ID
                     if self.is_serving and resp.message_type == "REGISTER-DENIED":
                         message.message_type = resp.message_type
 
