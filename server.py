@@ -89,7 +89,6 @@ class Server:
         self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID}")
 
         self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
-        
         registered_users = self.session.query(db_models.User).all()
         for user in registered_users:
             self.send(self.UDPSock, message, ("127.0.0.1", user.port))
@@ -185,7 +184,7 @@ class Server:
                 print(msg)
                 self.UDPSock.close()
         
-        # Send text to every connected user which has subject in their list of subjects
+    # Send text to every connected user which has subject in their list of subjects
     def publish_message(self, sock, sender, subject, text):
         for user in self.session.query(db_models.User).filter(db_models.User.subjects.any(name=subject)).filter(db_models.User.name != sender).all():
             self.send(sock, Message("MESSAGE", name=sender, subject=subject, text=text), (user.ip, user.port))
@@ -204,7 +203,7 @@ if __name__ == '__main__':
         print("Error - invalid argument count")
         print("Expecting: python server.py <server_id> <server_ip> <server_port> <other_server_id> <other_server_ip> <other_server_port> <is_serving>")
         sys.exit()
-    
+
     name, ip, port, other_name, other_ip, other_port, is_active = args
-    Server(ID=name, IP=ip, port=int(port), other_ID=other_name, other_IP=other_ip, other_port=int(other_port), is_serving=is_active).run_server()
-    
+    Server(ID=name, IP=ip, port=int(port), other_ID=other_name, other_IP=other_ip, other_port=int(other_port), is_serving=is_active.lower() == 'true').run_server()
+
