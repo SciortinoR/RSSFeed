@@ -32,7 +32,7 @@ class Server:
         self.server_logger = Logger('SERVER')
 
         db_name = f'sqlite:///server_{ID}.db'
-        engine = create_engine(db_name, echo=True)
+        engine = create_engine(db_name, echo=True, connect_args={'check_same_thread':False})
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
@@ -78,7 +78,9 @@ class Server:
 
     def switch_server(self):
         message = Message(
-                message_type="CHANGE-SERVER"
+                message_type="CHANGE-SERVER",
+                ip=self.other_server_IP,
+                port=self.other_server_port
             )
 
         self.change_server()
@@ -86,6 +88,10 @@ class Server:
         self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID}")
 
         self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
+        
+        registered_users = self.session.query(db_models.User).all()
+        for user in registered_users:
+            self.send(self.UDPSock, message, ("127.0.0.1", user.port))
 
     # Start the server and listen on host:port
     def run_server(self):
