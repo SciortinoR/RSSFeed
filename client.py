@@ -4,7 +4,7 @@ import socket
 import threading
 import win_ctrl_c
 
-from models import *
+from models import Message, ACTION_LIST
 from appJar import gui
 from json import dumps, loads
 
@@ -15,8 +15,8 @@ USERNAME = ""
 LOGGED_IN = False
 
 CURR_SERVER = ()
-SERVER1 = sys.argv[1].split("::")
-SERVER2 = sys.argv[2].split("::")
+SERVER1 = sys.argv[1].split(":")
+SERVER2 = sys.argv[2].split(":")
 SERVER1 = (SERVER1[0], int(SERVER1[1]))
 SERVER2 = (SERVER2[0], int(SERVER2[1]))
 MAX_BUFFER_SIZE = 1024
@@ -32,8 +32,6 @@ def check_stop():
 
 # Initial connect to both servers
 def connect(message):
-    global CURR_SERVER
-
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER1)
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
@@ -48,6 +46,10 @@ def send(message):
     except socket.error as msg:
         print(msg)
         app.errorBox('Error', msg)
+    else:
+        if message.message_type == "PUBLISH":
+            printRSS(message.name, message.subject, message.text)
+            
 
 # Submit Unregister
 def submit_unregister():
@@ -70,29 +72,27 @@ def submit_subjects():
     subjects = [x.strip() for x in app.getEntry("New Subjects List").split(',')]
     
     send(Message('SUBJECTS', uuid.uuid4().hex, username, subjects=subjects))
-    
-# Submit Info
-def submit_info():
-    ip = app.getEntry('New IP Address')
-    port = app.getEntry('New Socket #')
 
-    send(Message('UPDATE', uuid.uuid4().hex, USERNAME, ip=ip, port=port))
+def destroyWindow():
+    global WINDOW
+    app.destroySubWindow(WINDOW)
+    WINDOW = "Dashboard"
 
 # Update Subjects Window
 def update_subjects():
     global WINDOW
 
-    app.destroySubWindow(WINDOW)
     WINDOW = 'Update Subjects'
 
-    app.startSubWindow(WINDOW)
+    app.startSubWindow(WINDOW, modal=True)
+
     app.setBg("orange")
     app.setFont(18)
     app.addEntry('Username')
     app.setEntry("Username", USERNAME)
     app.addEntry('New Subjects List')
     app.setEntryDefault("New Subjects List", "New Subjects List")
-    app.addButtons(["Submit", "Cancel"], [submit_subjects, user_window])
+    app.addButtons(["Submit", "Cancel"], [submit_subjects, destroyWindow])
 
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
@@ -101,10 +101,9 @@ def update_subjects():
 def publish():
     global WINDOW
 
-    app.destroySubWindow(WINDOW)
     WINDOW = 'Publish'
 
-    app.startSubWindow(WINDOW)
+    app.startSubWindow(WINDOW, modal=True)
 
     app.setBg("orange")
     app.setFont(18)
@@ -115,7 +114,7 @@ def publish():
     app.addScrolledTextArea('Text Body')
     app.setTextAreaWidth('Text Body', 35)
     app.setTextAreaHeight('Text Body', 10)
-    app.addButtons(["Submit", "Cancel"], [submit_publish, user_window])
+    app.addButtons(["Submit", "Cancel"], [submit_publish, destroyWindow])
 
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
@@ -124,10 +123,9 @@ def publish():
 def unregister():
     global WINDOW
 
-    app.destroySubWindow(WINDOW)
     WINDOW = 'Unregister'
 
-    app.startSubWindow(WINDOW)
+    app.startSubWindow(WINDOW, modal=True)
 
     app.setBg("orange")
     app.setFont(18)
@@ -135,7 +133,7 @@ def unregister():
     app.setEntry("Username", USERNAME)
     app.addSecretEntry("Password")
     app.setEntryDefault("Password", "Password")
-    app.addButtons(["Finalize Unregister", "Cancel"], [submit_unregister, user_window])
+    app.addButtons(["Finalize Unregister", "Cancel"], [submit_unregister, destroyWindow])
 
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
@@ -147,7 +145,7 @@ def logout(terminate=False):
 
     LOGGED_IN = False
     udp_listener_running = False
-    app.destroySubWindow('RSS Feed')
+    app.destroyAllSubWindows()
     
     if not terminate or type(terminate) == str:
         authenticate()
@@ -155,8 +153,6 @@ def logout(terminate=False):
 # User Dashboard Window
 def user_window():
     global WINDOW
-
-    app.setLabelBg("status", "green")
 
     app.destroySubWindow(WINDOW)
     WINDOW = "Dashboard"
@@ -168,14 +164,6 @@ def user_window():
     app.addLabel('dashboard', text=f'Hi {USERNAME}! What would you like to do today:')
     app.addButtons(['Update Subjects', 'Publish'], [update_subjects, publish])
     app.addButtons(['Logout', 'Unregister'], [logout, unregister])
-    
-    app.stopSubWindow()
-    app.showSubWindow(WINDOW)
-
-# RSS Feed Window
-def rss_window():
-    app.startSubWindow('RSS Feed')
-
     app.addScrolledTextArea('Feed', text='This is your personal RSS Feed!\n\n')
     app.setTextAreaWidth('Feed', 100)
     app.setTextAreaHeight('Feed', 20)
@@ -183,7 +171,12 @@ def rss_window():
     app.disableTextArea('Feed')
 
     app.stopSubWindow()
-    app.showSubWindow('RSS Feed')
+    app.showSubWindow(WINDOW)
+
+def printRSS(name, subject, text):
+    app.setTextArea("Feed", f'[NAME]: {name}\n', end=True, callFunction=False)
+    app.setTextArea("Feed", f'[SUBJECT]: {subject}\n', end=True, callFunction=False)
+    app.setTextArea("Feed", f'[TEXT]: {text}\n\n', end=True, callFunction=False)
 
 # Listens to incoming messages from server
 def udp_listener():
@@ -197,17 +190,15 @@ def udp_listener():
             if response.message_type not in ACTION_LIST:
                 raise Exception(f"Undefined Request Type - {response.message_type}")
             elif response.message_type == 'MESSAGE':
-                app.setTextArea("Feed", f'[NAME]: {response.name}\n', end=True, callFunction=False)
-                app.setTextArea("Feed", f'[SUBJECT]: {response.subject}\n', end=True, callFunction=False)
-                app.setTextArea("Feed", f'[TEXT]: {response.text}\n\n', end=True, callFunction=False)
+                printRSS(response.name, response.subject, response.text)
             elif response.message_type == "SUBJECTS-UPDATED":
-                app.errorBox('Update Subjects', "Update Subjects Successful!")
-                user_window()
+                app.infoBox('Update Subjects', "Update Subjects Successful!")
+                app.destroySubWindow('Update Subjects')
             elif response.message_type == "PUBLISH-CONFIRMED":
-                app.errorBox('Publish', "Publish Successful!")
-                user_window()
+                app.infoBox('Publish', "Publish Successful!")
+                app.destroySubWindow('Publish')
             elif response.message_type == "DE-REGISTERED":
-                app.errorBox('Unregistered', "Unregister Successful!")
+                app.infoBox('Unregistered', "Unregister Successful!")
                 logout()
             elif response.message_type == "CHANGE-SERVER":
                 CURR_SERVER = (response.ip, response.port)
@@ -251,7 +242,6 @@ def register_login(button):
         app.errorBox('Error', msg)
     else:
         user_window()
-        rss_window()
         LOGGED_IN = True
         udp_listener_running = True
         udp_listener_thread = threading.Thread(target=udp_listener)
@@ -261,10 +251,6 @@ def register_login(button):
 def authenticate():
     global WINDOW
 
-    app.setLabelBg("status", "red")
-
-    if WINDOW:
-        app.destroySubWindow(WINDOW)
     WINDOW = "Authentication"
 
     app.startSubWindow(WINDOW)
@@ -293,11 +279,7 @@ if __name__ == '__main__':
     else:
         udp_listener_running = False
         
-        app = gui("Status", "210x22", handleArgs=False)
-        app.setFont(20)
-        app.addLabel('status', 'RSS MANAGER')
-        app.setLabelBg("status", "red")
-        app.setLabelFg("status", "black")
+        app = gui(handleArgs=False)
         app.topLevel.protocol('WM_DELETE_WINDOW', check_stop)
         authenticate()
-        app.go()
+        app.go(startWindow="Authentication")
