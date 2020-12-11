@@ -36,7 +36,8 @@ class Server:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-        self.timer = threading.Timer(10.0, self.switch_server)
+        self.switching_time_seconds = 300 # Set switching time to 5 minutes by default
+        self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
         if is_serving:
             self.timer.start()
 
@@ -165,7 +166,7 @@ class Server:
                     continue
 
                 elif message.message_type == "CHANGE-SERVER":
-                    self.timer = threading.Timer(5.0, self.switch_server)
+                    self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
                     self.change_server()
                     self.timer.start()
                     continue
