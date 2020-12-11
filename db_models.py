@@ -3,7 +3,8 @@ from sqlalchemy import Column, Date, Integer, String, Table
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('sqlite:///server_B.db', echo=False)
+engine_a = create_engine('sqlite:///server_A.db', echo=False)
+engine_b = create_engine('sqlite:///server_B.db', echo=False)
 Base = declarative_base()
 
 user_subject = Table(
@@ -68,4 +69,5 @@ class Subject(Base):
         return f'Subject: {self.name}' 
 
 
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine_a)
+Base.metadata.create_all(engine_b)
