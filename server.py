@@ -32,7 +32,7 @@ class Server:
         self.server_logger = Logger('SERVER')
 
         db_name = f'sqlite:///server_{ID}.db'
-        engine = create_engine(db_name, echo=True, connect_args={'check_same_thread':False})
+        engine = create_engine(db_name, echo=False, connect_args={'check_same_thread':False})
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
