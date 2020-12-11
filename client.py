@@ -34,7 +34,7 @@ def check_stop():
 def connect(message):
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER1)
-        udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
+        #udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
     except socket.error as msg:
         print(msg)
         app.errorBox('Error', msg)
@@ -270,7 +270,7 @@ if __name__ == '__main__':
     try:
         udp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_client_socket.settimeout(3)
-        udp_client_socket.bind(("", 0))
+        udp_client_socket.bind(("127.0.0.1", 0))
         client_access = udp_client_socket.getsockname()
     except socket.error as msg:
         print("Failed to create client socket")
