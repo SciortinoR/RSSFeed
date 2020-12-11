@@ -32,13 +32,7 @@ class Handler:
     
     def handle_deregister_user(self, message):
         username = message.name
-        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
-
-
-        # SECURITY CHECK
-        if user.password != message.password: 
-            self.server_logger.log_error(self.server_ID, f'WRONG PASSWORD MATE.')
-            return
+        user = self.session.query(db_models.User).filter_by(name=username).filter_by(password=message.password).one_or_none()
 
         if user:
             self.server_logger.log_info(self.server_ID, f"Successfully de-registered user with name {username}")
@@ -57,7 +51,7 @@ class Handler:
         username = message.name
         ip = message.ip
         port = message.port
-        user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
+        user = self.session.query(db_models.User).filter_by(name=username).filter_by(password=message.password).one_or_none()
 
         if not user:
             self.server_logger.log_error(self.server_ID, f"{username} does not exist in the registered users")
@@ -72,7 +66,7 @@ class Handler:
         user.port = port
         self.session.commit()
 
-        return  Message(
+        return Message(
                 message_type="UPDATE-CONFIRMED", 
                 uuid=message.uuid, 
                 name=username, 
@@ -113,7 +107,7 @@ class Handler:
 
     def handle_publish_message(self, message):
         username = message.name
-        subject = message.subject
+        subject = message.subject.lower()
         user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
         subject_in_db = self.session.query(db_models.Subject).filter_by(name=subject).one_or_none()
 

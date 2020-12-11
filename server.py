@@ -67,7 +67,8 @@ class Server:
         message = Message(
                 message_type="UPDATE-SERVER",
                 ip=self.IP,
-                port=self.port
+                port=self.port,
+                text=self.ID
             )
 
         self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
@@ -86,9 +87,7 @@ class Server:
             )
 
         self.change_server()
-
-        self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID}")
-
+        self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID} at {self.other_server_IP}:{self.other_server_port}")
         self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
         registered_users = self.session.query(db_models.User).all()
         for user in registered_users:
@@ -107,27 +106,44 @@ class Server:
                 
                 (data, addr) = self.UDPSock.recvfrom(buf)
                 message.json_deserialize(json.loads(data))
+                self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
+
+                # Messages from the second server are identified by having the other server ID in the `text` field
                 sent_from_other_server = message.text == self.other_server_ID
 
-                if message.message_type != "CHANGE-SERVER":
-                    self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
+                # Regardless of who the active server is, we must process messages from the other server
+                if sent_from_other_server:
+                    # A user successfully registered from the other server, we must update this server's database
+                    if message.message_type == "REGISTERED":
+                        self.handler.handle_register_user(message)
 
-                if message.message_type not in ACTION_LIST:
-                    print(message.message_type)
-                    raise Exception("Undefined message Type")
+                    elif message.message_type == "UPDATE-SERVER":
+                        self.other_server.ip, self.other_server.port = message.ip, message.port
+                        self.session.commit()
 
-                if message.message_type == "REGISTER" and (self.is_serving or sent_from_other_server):
+                    elif message.message_type == "CHANGE-SERVER":
+                        print(f"Server {self.ID} being set to active server, switching time set to {self.switching_time_seconds}")
+                        self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
+                        self.change_server()
+                        self.timer.start()
+
+                    elif message.message_type == "REGISTER-DENIED":
+                        self.server_logger.log_error(self.ID, f"Registration of user {message.name} denied.")
+
+                    continue
+
+                # If we aren't the one serving, and the message came from a User, we ignore it
+                if not self.is_serving:
+                    continue
+
+                if message.message_type == "REGISTER":
                     resp = self.handler.handle_register_user(message)
                     message.text = self.ID
-                    if self.is_serving and resp.message_type == "REGISTER-DENIED":
-                        message.message_type = resp.message_type
-
-                elif message.message_type == "REGISTER-DENIED": 
-                    self.server_logger.log_error(self.ID, f"Registration of user {message.name} denied.")
-                    continue
+                    message.message_type = resp.message_type
 
                 elif message.message_type == "DE-REGISTER":
                     resp = self.handler.handle_deregister_user(message)
+                    # TODO: Notify second server then continue - no more user to respond to
                     if resp:
                         continue
 
@@ -149,32 +165,20 @@ class Server:
                         self.send(self.UDPSock, resp, addr)
                         continue
                 
-                elif message.message_type == "PUBLISH" and self.is_serving: 
+                elif message.message_type == "PUBLISH": 
                     resp = self.handler.handle_publish_message(message)
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
                         self.publish_message(self.UDPSock, message.name, message.subject, message.text)
                     continue
                 
-                elif message.message_type == "UPDATE-SERVER":
-                    new_ip = message.ip
-                    new_port = message.port
-                    self.other_server.ip = new_ip
-                    self.other_server.port = new_port
-
-                    self.session.commit()
-                    continue
-
-                elif message.message_type == "CHANGE-SERVER":
-                    self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
-                    self.change_server()
-                    self.timer.start()
-                    continue
-
-                if self.is_serving:
-                    self.send(self.UDPSock, resp, addr)
-                    self.server_logger.log_info(self.ID, f"Broadcasting message to server {self.other_server_ID}")
-                    self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
+                else:
+                    print(message.message_type)
+                    raise Exception("Undefined message Type")
+                
+                self.send(self.UDPSock, resp, addr)
+                self.server_logger.log_info(self.ID, f"Broadcasting message to server {self.other_server_ID}")
+                self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
 
             except socket.error as e:
                 err = e.args[0]
@@ -187,6 +191,7 @@ class Server:
         
     # Send text to every connected user which has subject in their list of subjects
     def publish_message(self, sock, sender, subject, text):
+        subject = subject.lower()
         for user in self.session.query(db_models.User).filter(db_models.User.subjects.any(name=subject)).filter(db_models.User.name != sender).all():
             self.send(sock, Message("MESSAGE", name=sender, subject=subject, text=text), (user.ip, user.port))
 
@@ -207,4 +212,4 @@ if __name__ == '__main__':
 
     name, ip, port, other_name, other_ip, other_port, is_active = args
     Server(ID=name, IP=ip, port=int(port), other_ID=other_name, other_IP=other_ip, other_port=int(other_port), is_serving=is_active.lower() == 'true').run_server()
-
+    
