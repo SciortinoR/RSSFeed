@@ -34,7 +34,7 @@ def check_stop():
 def connect(message):
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER1)
-        #udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
+        udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER2)
     except socket.error as msg:
         print(msg)
         app.errorBox('Error', msg)
