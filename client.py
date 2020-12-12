@@ -53,25 +53,27 @@ def send(message):
 
 # Submit Unregister
 def submit_unregister():
-    username = app.getEntry('Username')
+    global USERNAME
     password = app.getEntry('Password')
 
-    send(Message('DE-REGISTER', uuid.uuid4().hex, username, password))
+    send(Message('DE-REGISTER', uuid.uuid4().hex, USERNAME, password))
 
 # Submit Publish
 def submit_publish():
-    username = app.getEntry('Username')
+    global USERNAME
+
     subject = app.getEntry("Subject")
     text = app.getTextArea("Text Body")
 
-    send(Message('PUBLISH', uuid.uuid4().hex, username, subject=subject, text=text))
+    send(Message('PUBLISH', uuid.uuid4().hex, USERNAME, subject=subject, text=text))
 
 # Submit Subjects
 def submit_subjects():
-    username = app.getEntry('Username')
+    global USERNAME
+
     subjects = [x.strip() for x in app.getEntry("New Subjects List").split(',')]
     
-    send(Message('SUBJECTS', uuid.uuid4().hex, username, subjects=subjects))
+    send(Message('SUBJECTS', uuid.uuid4().hex, USERNAME, subjects=subjects))
 
 def destroyWindow():
     global WINDOW
@@ -88,8 +90,6 @@ def update_subjects():
 
     app.setBg("orange")
     app.setFont(18)
-    app.addEntry('Username')
-    app.setEntry("Username", USERNAME)
     app.addEntry('New Subjects List')
     app.setEntryDefault("New Subjects List", "New Subjects List")
     app.addButtons(["Submit", "Cancel"], [submit_subjects, destroyWindow])
@@ -107,8 +107,6 @@ def publish():
 
     app.setBg("orange")
     app.setFont(18)
-    app.addEntry('Username')
-    app.setEntry("Username", USERNAME)
     app.addEntry('Subject')
     app.setEntryDefault("Subject", "Subject")
     app.addScrolledTextArea('Text Body')
@@ -129,8 +127,6 @@ def unregister():
 
     app.setBg("orange")
     app.setFont(18)
-    app.addEntry('Username')
-    app.setEntry("Username", USERNAME)
     app.addSecretEntry("Password")
     app.setEntryDefault("Password", "Password")
     app.addButtons(["Finalize Unregister", "Cancel"], [submit_unregister, destroyWindow])
