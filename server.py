@@ -130,6 +130,19 @@ class Server:
                         self.timer.start()
                     continue
 
+                # The update method is an exception to the splitting of user-server, server-server communication
+                # Since a client can update at any time from any new IP/Port, it has no way of knowing which server
+                # is the currently active one - therefore the client will send it to both. We must ensure to update the client
+                # in both the active and passive server.
+                if message.message_type == "UPDATE":
+                    resp = self.handler.handle_user_update(message)
+
+                    # If we happen to be the active server, respond to the client
+                    if self.is_serving:
+                        self.send(self.UDPSock, resp, addr)
+                    continue
+
+
                 # If we aren't the one serving, and the message came from a User, we ignore it
                 if not self.is_serving:
                     continue
@@ -142,15 +155,6 @@ class Server:
                 elif message.message_type == "DE-REGISTER":
                     resp = self.handler.handle_deregister_user(message)
 
-                elif message.message_type in ["UPDATE", "UPDATE-CONFIRMED"]:
-                    resp = self.handler.handle_user_update(message)
-
-                    if resp.message_type == "UPDATE-CONFIRMED":
-                        message = resp
-                    elif resp.message_type == "UPDATE-DENIED":
-                        self.send(self.UDPSock, resp, addr)
-                        continue
-                    
                 elif message.message_type in ["SUBJECTS", "SUBJECTS-UPDATED"]: 
                     resp = self.handler.handle_subjects_update(message)
 
@@ -171,7 +175,10 @@ class Server:
                     print(message.message_type)
                     raise Exception("Undefined message Type")
                 
+                # Respond to client
                 self.send(self.UDPSock, resp, addr)
+
+                # Forward Message to passive server
                 self.server_logger.log_info(self.ID, f"Broadcasting message to server {self.other_server_ID}")
                 message.text = self.ID # Indicate that this is a message from server to server
                 self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
