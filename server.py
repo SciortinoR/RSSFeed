@@ -36,10 +36,20 @@ class Server:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-        self.switching_time_seconds = 300 # Set switching time to 5 minutes by default
+        self.switching_time_seconds = 5 # Set switching time to 5 minutes by default
         self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
         if is_serving:
             self.timer.start()
+
+        self.takeover_time_seconds = 10
+        self.takeover_timer = threading.Timer(self.takeover_time_seconds, self.takeover)
+        if not is_serving:
+            self.takeover_timer.start() 
+
+        self.is_other_server_alive = False
+        self.ping_time_seconds = 2.5
+        self.ping_timer = threading.Timer(self.ping_time_seconds, self.ping)
+        self.ping_timer.start()
 
         self.current_server = self.session.query(db_models.Server).filter_by(name=ID).one_or_none()
         self.other_server = self.session.query(db_models.Server).filter_by(name=other_ID).one_or_none()
@@ -63,6 +73,19 @@ class Server:
 
         self.handler = Handler(self.ID, self.server_logger, self.session)
 
+
+    def takeover(self):
+        print("TAKEOVER")
+        self.timer.cancel()
+        self.is_other_server_alive = False
+        self.switch_server(takeover=True)
+
+    def ping(self):
+        self.UDPSock.sendto('PING'.encode(), (self.other_server_IP, self.other_server_port))
+        self.ping_timer.cancel()
+        self.ping_timer = threading.Timer(self.ping_time_seconds, self.ping)
+        self.ping_timer.start()
+
     def update_other_server(self):
         message = Message(
                 message_type="UPDATE-SERVER",
@@ -78,7 +101,14 @@ class Server:
         self.other_server.active = 0 if self.is_serving else 1
         self.session.commit()
 
-    def switch_server(self):
+    def switch_server(self, takeover=False):
+        if self.is_serving and not self.is_other_server_alive:
+            self.timer.cancel()
+            self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
+            self.timer.start()
+            print("Not switching")
+            return
+        
         message = Message(
                 message_type="CHANGE-SERVER",
                 text=self.ID,
@@ -87,11 +117,20 @@ class Server:
             )
 
         self.change_server()
-        self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID} at {self.other_server_IP}:{self.other_server_port}")
-        self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
+
+        if self.is_other_server_alive:
+            self.server_logger.log_info(self.ID, f"Switching to server {self.other_server_ID} at {self.other_server_IP}:{self.other_server_port}")
+            self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
+            print("Switching")
+
         registered_users = self.session.query(db_models.User).all()
         for user in registered_users:
             self.send(self.UDPSock, message, ("127.0.0.1", user.port))
+
+        self.timer.cancel()
+        switching_time_seconds = self.switching_time_seconds if takeover else self.switching_time_seconds * 2 + 1
+        self.timer = threading.Timer(switching_time_seconds, self.switch_server)
+        self.timer.start()
 
     # Start the server and listen on host:port
     def run_server(self):
@@ -105,6 +144,14 @@ class Server:
                 message = Message()
                 
                 (data, addr) = self.UDPSock.recvfrom(buf)
+
+                if data and data.decode() == "PING":
+                    self.is_other_server_alive = True
+                    self.takeover_timer.cancel()
+                    self.takeover_timer = threading.Timer(self.takeover_time_seconds, self.takeover)
+                    self.takeover_timer.start()
+                    continue
+
                 message.json_deserialize(json.loads(data))
                 self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
 
@@ -125,6 +172,7 @@ class Server:
                         self.other_server.ip, self.other_server.port = message.ip, message.port
                         self.session.commit()
                     elif message.message_type == "CHANGE-SERVER":
+                        self.timer.cancel()
                         self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
                         self.change_server()
                         self.timer.start()
@@ -187,6 +235,8 @@ class Server:
                 message.text = self.ID # Indicate that this is a message from server to server
                 self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
 
+                self.is_other_server_alive = False
+
             except socket.error as e:
                 err = e.args[0]
                 if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
@@ -219,4 +269,3 @@ if __name__ == '__main__':
 
     name, ip, port, other_name, other_ip, other_port, is_active = args
     Server(ID=name, IP=ip, port=int(port), other_ID=other_name, other_IP=other_ip, other_port=int(other_port), is_serving=is_active.lower() == 'true').run_server()
-    
