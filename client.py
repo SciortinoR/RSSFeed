@@ -14,6 +14,7 @@ WINDOW = ""
 USERNAME = ""
 LOGGED_IN = False
 
+# Initialize both server IP:PORT with command line args
 CURR_SERVER = ()
 SERVER1 = sys.argv[1].split(":")
 SERVER2 = sys.argv[2].split(":")
@@ -30,7 +31,7 @@ def check_stop():
 
     app.stop()
 
-# Initial connect to both servers
+# Establish initial connection by pinging both servers
 def connect(message):
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), SERVER1)
@@ -39,7 +40,7 @@ def connect(message):
         print(msg)
         app.errorBox('Error', msg)
 
-# Send Request 
+# Send Request
 def send(message):
     try:
         udp_client_socket.sendto(dumps(message.json_serialize()).encode(), CURR_SERVER)
@@ -75,8 +76,10 @@ def submit_subjects():
     
     send(Message('SUBJECTS', uuid.uuid4().hex, USERNAME, subjects=subjects))
 
+# Executes the 'Cancel' button
 def destroyWindow():
     global WINDOW
+
     app.destroySubWindow(WINDOW)
     WINDOW = "Dashboard"
 
@@ -134,7 +137,7 @@ def unregister():
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
 
-# Kill RSS Feed + Logout
+# Kills UDP Listener thread & logs out to authentication window
 def logout(terminate=False):
     global LOGGED_IN
     global udp_listener_running
@@ -143,6 +146,7 @@ def logout(terminate=False):
     udp_listener_running = False
     app.destroyAllSubWindows()
     
+    # If close/stop GUI, program terminates without authentication window
     if not terminate or type(terminate) == str:
         authenticate()
     
@@ -169,12 +173,13 @@ def user_window():
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
 
+# Displays a message received in the RSS Feed Window
 def printRSS(name, subject, text):
     app.setTextArea("Feed", f'[NAME]: {name}\n', end=True, callFunction=False)
     app.setTextArea("Feed", f'[SUBJECT]: {subject}\n', end=True, callFunction=False)
     app.setTextArea("Feed", f'[TEXT]: {text}\n\n', end=True, callFunction=False)
 
-# Listens to incoming messages from server
+# UDP Listener thread listening for incoming messages from server
 def udp_listener():
     global CURR_SERVER
 
@@ -214,15 +219,19 @@ def register_login(button):
     global CURR_SERVER
     global udp_listener_running
 
+    # Gets the username and password entered
     USERNAME = app.getEntry('Username')
     password = app.getEntry('Password')
 
     response = Message()
     try:
         action = button.upper()
+
+        # Attempt to connect to one of both servers
         connect(Message(action, uuid.uuid4().hex, USERNAME, password, client_access[0], client_access[1]))
         res = udp_client_socket.recvfrom(MAX_BUFFER_SIZE)
         
+        # Set active server IP:PORT
         CURR_SERVER = res[1]
         
         response.json_deserialize(loads(res[0]))
@@ -232,11 +241,12 @@ def register_login(button):
 
         if (action == 'REGISTER' and response.message_type != 'REGISTERED') or (action == 'UPDATE' and response.message_type != 'UPDATE-CONFIRMED'):
             raise Exception(f"Error: {response.message_type}\n\n{response.reason}")
-
+        
     except Exception as msg:
         print(msg)
         app.errorBox('Error', msg)
     else:
+        # Launch user dashboard and UDP Listener thread on successful register/login
         user_window()
         LOGGED_IN = True
         udp_listener_running = True
@@ -264,6 +274,7 @@ def authenticate():
 
 if __name__ == '__main__':
     try:
+        # Establish client socket settings
         udp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_client_socket.settimeout(3)
         udp_client_socket.bind(("127.0.0.1", 0))
@@ -273,8 +284,10 @@ if __name__ == '__main__':
         app.errorBox(f'Error', 'Failed to create client socket:\n\n{msg}')
         sys.exit()
     else:
+        # USP LIstener initially not running on app start, need register/login first
         udp_listener_running = False
         
+        # Start GUI with authentication window
         app = gui(handleArgs=False)
         app.topLevel.protocol('WM_DELETE_WINDOW', check_stop)
         authenticate()
