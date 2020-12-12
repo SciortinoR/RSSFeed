@@ -38,6 +38,10 @@ class Handler:
             self.server_logger.log_info(self.server_ID, f"Successfully de-registered user with name {username}")
             self.session.delete(user)
             self.session.commit()
+            return Message(
+                message_type="DE-REGISTER",
+                name=username
+            )
         else:
             error_message = f"`{username}` doesn't exist. Can't de-register."
             self.server_logger.log_warning(self.server_ID, error_message)

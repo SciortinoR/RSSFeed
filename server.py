@@ -116,20 +116,18 @@ class Server:
                     # A user successfully registered from the other server, we must update this server's database
                     if message.message_type == "REGISTERED":
                         self.handler.handle_register_user(message)
+                    elif message.message_type == "DE-REGISTER":
+                        self.handler.handle_deregister_user(message)
+                    elif message.message_type == "REGISTER-DENIED":
+                        self.server_logger.log_error(self.ID, f"Registration of user {message.name} denied.")
 
                     elif message.message_type == "UPDATE-SERVER":
                         self.other_server.ip, self.other_server.port = message.ip, message.port
                         self.session.commit()
-
                     elif message.message_type == "CHANGE-SERVER":
-                        print(f"Server {self.ID} being set to active server, switching time set to {self.switching_time_seconds}")
                         self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
                         self.change_server()
                         self.timer.start()
-
-                    elif message.message_type == "REGISTER-DENIED":
-                        self.server_logger.log_error(self.ID, f"Registration of user {message.name} denied.")
-
                     continue
 
                 # If we aren't the one serving, and the message came from a User, we ignore it
@@ -143,9 +141,6 @@ class Server:
 
                 elif message.message_type == "DE-REGISTER":
                     resp = self.handler.handle_deregister_user(message)
-                    # TODO: Notify second server then continue - no more user to respond to
-                    if resp:
-                        continue
 
                 elif message.message_type in ["UPDATE", "UPDATE-CONFIRMED"]:
                     resp = self.handler.handle_user_update(message)
@@ -178,6 +173,7 @@ class Server:
                 
                 self.send(self.UDPSock, resp, addr)
                 self.server_logger.log_info(self.ID, f"Broadcasting message to server {self.other_server_ID}")
+                message.text = self.ID # Indicate that this is a message from server to server
                 self.send(self.UDPSock, message, (self.other_server_IP, self.other_server_port))
 
             except socket.error as e:
@@ -200,7 +196,7 @@ class Server:
         try:
             sock.sendto(json.dumps(message.json_serialize()).encode(), addr)
         except socket.error as err:
-            print(err)
+            print(f"Error sending message {message} with error {err}")
 
 if __name__ == '__main__':
     args = sys.argv[1:]
