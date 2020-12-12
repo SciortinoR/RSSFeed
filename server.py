@@ -128,6 +128,9 @@ class Server:
                         self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
                         self.change_server()
                         self.timer.start()
+
+                    elif message.message_type == "SUBJECTS-UPDATED":
+                        self.handler.handle_subjects_update(message)
                     continue
 
                 # The update method is an exception to the splitting of user-server, server-server communication
@@ -155,12 +158,13 @@ class Server:
                 elif message.message_type == "DE-REGISTER":
                     resp = self.handler.handle_deregister_user(message)
 
-                elif message.message_type in ["SUBJECTS", "SUBJECTS-UPDATED"]: 
+                elif message.message_type == "SUBJECTS": 
                     resp = self.handler.handle_subjects_update(message)
 
                     if resp.message_type == "SUBJECTS-UPDATED":
                         message = resp
                     elif resp.message_type == "SUBJECTS-REJECTED":
+                        # If rejected, only notify the client
                         self.send(self.UDPSock, resp, addr)
                         continue
                 
