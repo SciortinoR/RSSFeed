@@ -225,7 +225,10 @@ def register_login(button):
 
     response = Message()
     try:
-        action = button.upper()
+        if button == "Register":
+            action = button.upper()
+        else:
+            action = "UPDATE"
 
         # Attempt to connect to one of both servers
         connect(Message(action, uuid.uuid4().hex, USERNAME, password, client_access[0], client_access[1]))
@@ -267,7 +270,7 @@ def authenticate():
     app.addSecretEntry("Password")
     app.setEntryDefault("Username", "Username")
     app.setEntryDefault("Password", "Password")
-    app.addButtons(["Register", "Update"], register_login)
+    app.addButtons(["Register", "Login/Update"], register_login)
 
     app.stopSubWindow()
     app.showSubWindow(WINDOW)
