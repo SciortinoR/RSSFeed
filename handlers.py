@@ -80,7 +80,7 @@ class Handler:
 
     def handle_subjects_update(self, message):
         username = message.name
-        subjects = message.subjects
+        subjects = list(map(lambda x: db_models.Subject(x.lower()), message.subjects))
         user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
 
         if not user:
@@ -91,22 +91,16 @@ class Handler:
                 reason=f"`{username}` is not a registered user"
             )
 
-        for subject in subjects:
-            subject = subject.lower()
-            subject_in_db = self.session.query(db_models.Subject).filter_by(name=subject).one_or_none()
-            if subject_in_db:
-                user.subjects.append(subject_in_db)
-            else:
-                user.subjects.append(db_models.Subject(subject))
-        
+        user.subjects = subjects
+
         self.session.commit()
         
-        self.server_logger.log_info(self.server_ID, f"Updating subjects of user {username} to {subjects}")
+        self.server_logger.log_info(self.server_ID, f"Updating subjects of user {username} to {message.subjects}")
         return Message(
                 message_type="SUBJECTS-UPDATED", 
                 uuid=message.uuid, 
                 name=username, 
-                subjects=subjects
+                subjects=message.subjects
             )
 
     def handle_publish_message(self, message):
