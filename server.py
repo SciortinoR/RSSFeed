@@ -221,7 +221,7 @@ class Server:
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
                         self.publish_message(self.UDPSock, message.name, message.subject, message.text)
-                    continue
+                        continue
                 
                 else:
                     print(message.message_type)
