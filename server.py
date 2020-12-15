@@ -36,7 +36,7 @@ class Server:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-        self.switching_time_seconds = 5 # Set switching time to 5 minutes by default
+        self.switching_time_seconds = 300 # Set switching time to 5 minutes by default
         self.timer = threading.Timer(self.switching_time_seconds, self.switch_server)
         if is_serving:
             self.timer.start()
@@ -224,7 +224,7 @@ class Server:
                     self.send(self.UDPSock, resp, addr)
                     if resp.message_type == "PUBLISH-CONFIRMED":
                         self.publish_message(self.UDPSock, message.name, message.subject, message.text)
-                        continue
+                    continue
                 
                 else:
                     print(message.message_type)
