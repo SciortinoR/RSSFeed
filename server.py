@@ -153,7 +153,8 @@ class Server:
                     continue
 
                 message.json_deserialize(json.loads(data))
-                self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
+                if not message.message_type == "CHANGE-SERVER":
+                    self.server_logger.log_info(self.ID, "Received message: " + json.dumps(message.json_serialize(), indent=4))
 
                 # Messages from the second server are identified by having the other server ID in the `text` field
                 sent_from_other_server = message.text == self.other_server_ID

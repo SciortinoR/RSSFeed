@@ -78,9 +78,15 @@ class Handler:
                 port=message.port
             )
 
+    def filter_subjects(self, subject):
+        subject_in_db = self.session.query(db_models.Subject).filter_by(name=subject.lower()).one_or_none()
+        if subject_in_db:
+            return subject_in_db
+        return db_models.Subject(subject.lower())
+
     def handle_subjects_update(self, message):
         username = message.name
-        subjects = list(map(lambda x: db_models.Subject(x.lower()), message.subjects))
+        subjects = list(map(self.filter_subjects, message.subjects))
         user = self.session.query(db_models.User).filter_by(name=username).one_or_none()
 
         if not user:
