@@ -55,9 +55,9 @@ def send(message):
 # Submit Unregister
 def submit_unregister():
     global USERNAME
-    password = app.getEntry('Password')
+    #password = app.getEntry('Password')
 
-    send(Message('DE-REGISTER', uuid.uuid4().hex, USERNAME, password))
+    send(Message('DE-REGISTER', uuid.uuid4().hex, USERNAME))
 
 # Submit Publish
 def submit_publish():
@@ -130,8 +130,7 @@ def unregister():
 
     app.setBg("orange")
     app.setFont(18)
-    app.addSecretEntry("Password")
-    app.setEntryDefault("Password", "Password")
+    app.addLabel("finalize", "Are you sure?")
     app.addButtons(["Finalize Unregister", "Cancel"], [submit_unregister, destroyWindow])
 
     app.stopSubWindow()
@@ -188,9 +187,7 @@ def udp_listener():
         try:
             response.json_deserialize(loads(udp_client_socket.recvfrom(MAX_BUFFER_SIZE)[0]))
 
-            if response.message_type not in ACTION_LIST:
-                raise Exception(f"Undefined Request Type - {response.message_type}")
-            elif response.message_type == 'MESSAGE':
+            if response.message_type == 'MESSAGE':
                 printRSS(response.name, response.subject, response.text)
             elif response.message_type == "SUBJECTS-UPDATED":
                 app.infoBox('Update Subjects', "Update Subjects Successful!")
@@ -198,7 +195,7 @@ def udp_listener():
             elif response.message_type == "PUBLISH-CONFIRMED":
                 app.infoBox('Publish', "Publish Successful!")
                 app.destroySubWindow('Publish')
-            elif response.message_type == "DE-REGISTERED":
+            elif response.message_type == "DE-REGISTER":
                 app.infoBox('Unregistered', "Unregister Successful!")
                 logout()
             elif response.message_type == "CHANGE-SERVER":
