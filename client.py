@@ -22,6 +22,8 @@ SERVER1 = (SERVER1[0], int(SERVER1[1]))
 SERVER2 = (SERVER2[0], int(SERVER2[1]))
 MAX_BUFFER_SIZE = 1024
 
+PREV_PUBLISH = Message()
+
 # Stop GUI method
 def check_stop():
     print("App shutting down...")
@@ -47,24 +49,24 @@ def send(message):
     except socket.error as msg:
         print(msg)
         app.errorBox('Error', msg)
-    else:
-        if message.message_type == "PUBLISH":
-            printRSS(message.name, message.subject, message.text)
-            
 
 # Submit Unregister
 def submit_unregister():
     global USERNAME
-    #password = app.getEntry('Password')
 
     send(Message('DE-REGISTER', uuid.uuid4().hex, USERNAME))
 
 # Submit Publish
 def submit_publish():
     global USERNAME
+    global PREV_PUBLISH
 
     subject = app.getEntry("Subject")
     text = app.getTextArea("Text Body")
+
+    PREV_PUBLISH.name = USERNAME
+    PREV_PUBLISH.subject = subject
+    PREV_PUBLISH.text = text
 
     send(Message('PUBLISH', uuid.uuid4().hex, USERNAME, subject=subject, text=text))
 
@@ -181,6 +183,7 @@ def printRSS(name, subject, text):
 # UDP Listener thread listening for incoming messages from server
 def udp_listener():
     global CURR_SERVER
+    global PREV_PUBLISH
 
     response = Message()
     while udp_listener_running:
@@ -193,6 +196,7 @@ def udp_listener():
                 app.infoBox('Update Subjects', "Update Subjects Successful!")
                 app.destroySubWindow('Update Subjects')
             elif response.message_type == "PUBLISH-CONFIRMED":
+                printRSS(PREV_PUBLISH.name, PREV_PUBLISH.subject, PREV_PUBLISH.text)
                 app.infoBox('Publish', "Publish Successful!")
                 app.destroySubWindow('Publish')
             elif response.message_type == "DE-REGISTER":
