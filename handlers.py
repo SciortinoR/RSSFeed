@@ -115,7 +115,17 @@ class Handler:
                 uuid=message.uuid,
                 reason=f"`{username}` is not a registered user"
             )
+
         if not subject_in_db:
+            self.server_logger.log_error(self.server_ID, f"{subject} is not an existing subject")
+            return Message(
+                message_type="PUBLISH-DENIED", 
+                uuid=message.uuid,
+                reason=f"`{subject}` is not an existing subject"
+            )
+
+        user_subbed = self.session.query(db_models.user_subject).filter_by(user_id=user.user_id).filter_by(subject_id=subject_in_db.subject_id).one_or_none()
+        if not user_subbed:
             self.server_logger.log_error(self.server_ID, f"User {username} is not registered to subject {subject}")
             return Message(
                 message_type="PUBLISH-DENIED", 
