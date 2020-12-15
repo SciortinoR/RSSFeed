@@ -206,6 +206,8 @@ class Server:
 
                 elif message.message_type == "DE-REGISTER":
                     resp = self.handler.handle_deregister_user(message)
+                    if resp is None: 
+                        continue
 
                 elif message.message_type == "SUBJECTS": 
                     resp = self.handler.handle_subjects_update(message)
